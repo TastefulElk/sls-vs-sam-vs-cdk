@@ -1,0 +1,21 @@
+{
+  "name": "sls",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "serverless": "^2.39.0",
+    "serverless-offline": "^7.0.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.14.0",
+    "@aws-sdk/client-sqs": "^3.14.0",
+    "@aws-sdk/util-dynamodb": "^3.14.0"
+  }
+}

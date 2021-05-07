@@ -1,0 +1,59 @@
+service: sls-todont
+
+plugins:
+  - serverless-offline
+
+provider:
+  name: aws
+  region: eu-north-1
+  runtime: nodejs14.x
+  environment: # Inject environment variables
+    TABLE_NAME: ${self:custom.tableName}
+    QUEUE_URL: !Ref todontsQueue
+  iamRoleStatements: # Configure IAM role statements
+    - Effect: Allow
+      Action: sqs:sendMessage
+      Resource: ${self:custom.queueArn}
+    - Effect: Allow
+      Action: dynamodb:putItem
+      Resource: ${self:custom.tableArn}
+
+custom: # Custom variables that we can reference elsewhere
+  tableName: ${self:service}-table
+  queueName: ${self:service}-queue
+  tableArn: # Get ARN of table with CloudFormation helper
+    Fn::GetAtt: [todontsTable, Arn]
+  queueArn: # Get ARN of queue with CloudFormation helper
+    Fn::GetAtt: [todontsQueue, Arn]
+
+functions: # Define our two Lambda functions
+  post:
+    handler: src/post.handler
+    events: # Invoke on post requests to /todonts
+      - http:
+          method: post
+          path: todonts
+  process:
+    handler: src/process.handler
+    events: # Consume SQS queue
+      - sqs:
+          arn: ${self:custom.queueArn}
+
+# CloudFormation below to define our infrastructure resources
+resources: 
+  Resources:
+    todontsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.tableName}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: 'PAY_PER_REQUEST'
+    todontsQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.queueName}

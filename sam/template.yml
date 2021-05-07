@@ -1,0 +1,73 @@
+# Boilerplate to identify template as SAM template
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: sam-todonts
+
+Globals:
+  Function:
+    Runtime: nodejs14.x
+    Environment: # Inject environment variables
+      Variables:
+        QUEUE_URL: 
+          Ref: TodontsQueue
+        TABLE_NAME:
+          Ref: TodontsTable
+
+Parameters: # Parameters which can be filled by the CLI on deploy
+  TableName: 
+    Description: Name of DynamoDB table
+    Type: String
+    Default: sam-todonts-table
+  QueueName:
+    Description: Name of SQS queue
+    Type: String
+    Default: sam-todonts-queue
+
+Resources: 
+  PostFunction:
+    Type: AWS::Serverless::Function
+    FunctionName: sam-todonts-post
+    Properties:
+      Handler: src/post.handler
+      Events:
+        Post: #  Invoke on post requests to /todonts
+          Type: HttpApi
+          Properties:
+            Path: /todonts
+            Method: post
+      Policies:
+        - SQSSendMessagePolicy: # Use predefined IAM policy
+            QueueName:
+              Fn::GetAtt: [TodontsQueue, QueueName]
+
+  ProcessFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/process.handler
+      Events:  # Consume SQS queue
+        SQSQueueEvent:
+          Type: SQS
+          Properties:
+            Queue:
+              Fn::GetAtt: [TodontsQueue, Arn]
+      Policies: # Use predefined IAM policy
+        - DynamoDBWritePolicy:
+            TableName:
+              Ref: TodontsTable
+
+  TodontsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: sam-todonts-table
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  TodontsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: sam-todonts-queue
